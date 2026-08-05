@@ -220,14 +220,9 @@ impl Filter {
 
     pub fn matches(&self, memo: &Memo) -> bool {
         match self {
-            Filter::IncludeTag(tag) => {
-                memo.tags.iter().any(|t| t == tag)
-                    || memo.content.contains(&format!("#{tag}"))
-            }
-            Filter::ExcludeTag(tag) => {
-                !memo.tags.iter().any(|t| t == tag)
-                    && !memo.content.contains(&format!("#{tag}"))
-            }
+            // ponytail: only API tags[]; usememos fills them from body #tag
+            Filter::IncludeTag(tag) => memo.tags.iter().any(|t| t == tag),
+            Filter::ExcludeTag(tag) => !memo.tags.iter().any(|t| t == tag),
             Filter::Regex(re) => re.is_match(&memo.content),
         }
     }
@@ -364,6 +359,30 @@ mod tests {
         assert!(Filter::parse("/[unclosed/").is_err());
         assert!(Filter::parse("-1").unwrap().is_none());
         assert!(Filter::parse("plain").unwrap().is_none());
+    }
+
+    #[test]
+    fn tag_filter_matches_tags_only_not_body_hash() {
+        let body_only = Memo {
+            name: "memos/a".into(),
+            content: "note #work".into(),
+            create_time: String::new(),
+            tags: vec![],
+            visibility: String::new(),
+        };
+        let tagged = Memo {
+            name: "memos/b".into(),
+            content: "no hash here".into(),
+            create_time: String::new(),
+            tags: vec!["work".into()],
+            visibility: String::new(),
+        };
+        let inc = Filter::parse("+work").unwrap().unwrap();
+        let exc = Filter::parse("-work").unwrap().unwrap();
+        assert!(!inc.matches(&body_only));
+        assert!(inc.matches(&tagged));
+        assert!(exc.matches(&body_only));
+        assert!(!exc.matches(&tagged));
     }
 
     #[test]

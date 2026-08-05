@@ -72,7 +72,7 @@ memos-cli get 1                   # 正文（别名 show / cat）
 memos-cli e 1                     # $EDITOR 编辑（别名 edit）
 
 # 筛选（taskwarrior 风格）
-memos-cli l +work                 # 含标签 work
+memos-cli l +work                 # 含标签 work（只看 API tags，不扫正文）
 memos-cli l -test                 # 排除 test
 memos-cli l /hello/               # 正文正则（Rust regex）
 memos-cli l +work /urgent/ -test  # 可组合
@@ -101,7 +101,8 @@ memos-cli --help
 
 ### 标签
 
-usememos 从正文 `#tag` 识别标签。`+ word +tag` 会把 `#tag` 追加进正文。
+usememos 从正文 `#tag` 识别标签并填进 API 的 `tags` 字段。`+ word +tag` 会把 `#tag` 追加进正文。  
+列表筛选 `+tag` / `-tag` **只匹配 `tags` 字段**，不扫正文里的字面 `#tag`。
 
 ### TUI
 

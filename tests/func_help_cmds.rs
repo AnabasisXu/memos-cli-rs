@@ -71,7 +71,7 @@ fn help_lists_all_commands() {
     assert_ok(&o, "help");
     let s = stdout(&o);
     for cmd in [
-        "list", "get", "edit", "+", "-", "export", "import", "tui", "help",
+        "list", "get", "edit", "+", "-", "export", "import", "tui", "help", "version",
     ] {
         assert!(s.contains(cmd), "help missing `{cmd}`:\n{s}");
     }
@@ -84,6 +84,15 @@ fn version_flag() {
     let o = run(&["--version"]);
     assert_ok(&o, "version");
     assert!(stdout(&o).contains("memos-cli"));
+
+    let o = run(&["version"]);
+    assert_ok(&o, "version subcommand");
+    assert!(stdout(&o).contains("memos-cli"));
+
+    // clap 内置 help 子命令
+    let o = run(&["help"]);
+    assert_ok(&o, "help subcommand");
+    assert!(stdout(&o).to_lowercase().contains("usage"));
 }
 
 #[test]

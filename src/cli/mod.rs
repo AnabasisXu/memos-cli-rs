@@ -36,7 +36,7 @@ pub enum Commands {
         limit: Option<u32>,
         #[arg(long)]
         raw: bool,
-        /// 筛选：+tag / -tag / /regex/
+        /// 筛选：+tag / -tag / /regex/（+tag 只看 API tags 字段）
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         filters: Vec<String>,
     },
@@ -70,6 +70,8 @@ pub enum Commands {
     Import,
     /// TUI 模式
     Tui,
+    /// 打印版本（同 --version）
+    Version,
 }
 
 pub fn run() -> Result<()> {
@@ -87,9 +89,14 @@ pub fn run() -> Result<()> {
     }
     run_with_args(raw)
 }
-
 fn run_with_args(args: Vec<String>) -> Result<()> {
     let cli = Cli::parse_from(args);
+    // version 不碰网络、不要求 token
+    if matches!(cli.command, Commands::Version) {
+        println!("memos-cli {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     let cfg = Config::load(cli.base.clone(), cli.token.clone())?;
     let client = Client::new(&cfg.base, &cfg.token);
 
@@ -122,6 +129,7 @@ fn run_with_args(args: Vec<String>) -> Result<()> {
         Commands::Export => cmd_export(&client),
         Commands::Import => cmd_import(&client),
         Commands::Tui => crate::tui::run(&client),
+        Commands::Version => unreachable!(),
     }
 }
 
@@ -153,7 +161,9 @@ fn cmd_list(
         } else {
             &memos[..]
         };
-        println!("{}", serde_json::to_string_pretty(slice)?);
+        // bash: jq . on full list body → wrap as API-shaped object
+        let body = serde_json::json!({ "memos": slice });
+        println!("{}", serde_json::to_string_pretty(&body)?);
         return Ok(());
     }
     let filters = parse_filters(filter_args)?;
