@@ -7,18 +7,38 @@
 
 ## 安装
 
+### 预编译二进制（Release）
+
+从 [Releases](https://github.com/AnabasisXu/memos-cli-rs/releases) 下载：
+
+| 文件 | 平台 |
+|------|------|
+| `memos-cli-linux-x86_64` | Linux x86_64 |
+| `memos-cli-windows-x86_64.exe` | Windows x86_64 |
+
+```bash
+# Linux
+chmod +x memos-cli-linux-x86_64
+mv memos-cli-linux-x86_64 ~/.local/bin/memos-cli
+
+# Windows：把 memos-cli-windows-x86_64.exe 放到 PATH 目录，可改名为 memos-cli.exe
+```
+
 ### 源码
 
 ```bash
 cargo install --path .
 # 或
-cargo build --release
-# 产物：target/release/memos-cli
+cargo build --release                 # Linux：target/release/memos-cli
+# Windows cross（可选）:
+# cargo build --release --target x86_64-pc-windows-gnu
+# 产物：target/x86_64-pc-windows-gnu/release/memos-cli.exe
 ```
 
 ### 要求
 
-- Rust 1.75+（edition 2021）
+- 预编译包：无需 Rust
+- 源码编译：Rust 1.75+（edition 2021）
 - 可访问的 usememos 实例 + Access Token
 
 ## 配置
