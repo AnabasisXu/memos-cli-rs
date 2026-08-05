@@ -124,10 +124,6 @@ cargo test                 # 单元 + 功能（功能测需本机 memos + token�
 cargo run -- l -n 3
 ```
 
-## 与 bash 版关系
-
-同级目录 `../memos-cli/` 是原实现：`bash` CLI + `Python` curses TUI。  
-本目录 `memos-cli-rs` 是 **完整 Rust 重写**（CLI + ratatui TUI），命令大致对齐 bash 版。
 
 ## License
 
