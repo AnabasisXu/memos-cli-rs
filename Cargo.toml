@@ -5,6 +5,8 @@ edition = "2021"
 description = "Unofficial usememos CLI + TUI over REST API"
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/AnabasisXu/memos-cli-rs"
+homepage = "https://github.com/AnabasisXu/memos-cli-rs"
 keywords = ["memos", "usememos", "cli", "tui", "notes"]
 categories = ["command-line-utilities"]
 [dependencies]
