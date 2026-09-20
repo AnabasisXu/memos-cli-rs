@@ -21,12 +21,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          # Linux 用 musl 静态链接：产物不依赖系统 GLIBC（Ubuntu 24.04 的
+          # glibc 2.39 产物在旧系统跑不了），asset 名与 README 下载表一致
+          - target: x86_64-unknown-linux-musl
             asset: memos-cli-linux-x86_64
             bin: memos-cli
+            deps: musl-tools
           - target: x86_64-pc-windows-gnu
             asset: memos-cli-windows-x86_64.exe
             bin: memos-cli.exe
+            deps: mingw-w64
     steps:
       - uses: actions/checkout@v4
 
@@ -38,9 +42,13 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: mingw (windows)
-        if: matrix.target == 'x86_64-pc-windows-gnu'
-        run: sudo apt-get update -y && sudo apt-get install -y mingw-w64
+      - name: cross deps (mingw/musl linker)
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y ${{ matrix.deps }}
+          # ring (rustls) 按交叉前缀找 x86_64-linux-musl-gcc，musl-tools 只装 musl-gcc
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
+            sudo ln -sf /usr/bin/musl-gcc /usr/local/bin/x86_64-linux-musl-gcc
+          fi
 
       - name: build
         run: cargo build --release --locked --target ${{ matrix.target }}
