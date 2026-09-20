@@ -70,34 +70,70 @@ fn help_lists_all_commands() {
     let o = run(&["--help"]);
     assert_ok(&o, "help");
     let s = stdout(&o);
-    for cmd in [
-        "list", "get", "edit", "+", "-", "export", "import", "tui", "help", "version",
-    ] {
+    // 全英文顶级 about
+    assert!(
+        s.contains("Unofficial usememos CLI + TUI"),
+        "help about should be English:\n{s}"
+    );
+    // Usage 子命令可选（默认分派）
+    assert!(s.contains("[COMMAND]"), "Usage should show optional command:\n{s}");
+    // 完整命令名：含 delete 主名、不含符号命令（- / +）
+    for cmd in ["add", "list", "ls", "edit", "delete", "export", "import", "tui", "help", "version"] {
         assert!(s.contains(cmd), "help missing `{cmd}`:\n{s}");
     }
-    // aliases mentioned
-    assert!(s.contains("l") || s.contains("ls"));
+    assert!(
+        s.lines().any(|l| l.starts_with("  delete")),
+        "delete should be a top-level command line:\n{s}"
+    );
+    assert!(
+        !s.lines().any(|l| l.starts_with("  - ") || l.starts_with("  + ")),
+        "symbol commands should not appear in Commands list:\n{s}"
+    );
+    assert!(!s.contains("[alias"), "aliases moved out of help:\n{s}");
+    // get 已删除
+    assert!(!s.contains("get"), "get should be removed:\n{s}");
+    // --alias 选项
+    assert!(s.contains("--alias"), "--alias option missing:\n{s}");
+}
+
+#[test]
+fn alias_flag() {
+    let o = run(&["--alias"]);
+    assert_ok(&o, "--alias");
+    let s = stdout(&o);
+    assert!(s.contains("list:"), "missing list row:\n{s}");
+    assert!(s.contains("delete: -, del, rm"), "missing delete row:\n{s}");
+    assert!(s.contains("add:    +"), "missing add row:\n{s}");
+    assert!(s.contains("edit:   e"), "missing edit row:\n{s}");
+    assert!(s.contains("config: cfg"), "missing config row:\n{s}");
 }
 
 #[test]
 fn version_flag() {
     let o = run(&["--version"]);
     assert_ok(&o, "version");
-    assert!(stdout(&o).contains("memos-cli"));
+    assert!(stdout(&o).contains("memos-cli"), "{}", stdout(&o));
+    assert!(stdout(&o).contains("built"), "missing build time: {}", stdout(&o));
 
     let o = run(&["version"]);
     assert_ok(&o, "version subcommand");
-    assert!(stdout(&o).contains("memos-cli"));
+    assert!(stdout(&o).contains("memos-cli"), "{}", stdout(&o));
+    assert!(stdout(&o).contains("built"), "missing build time: {}", stdout(&o));
 
-    // clap 内置 help 子命令
+    // help 子命令（英文）
     let o = run(&["help"]);
     assert_ok(&o, "help subcommand");
-    assert!(stdout(&o).to_lowercase().contains("usage"));
+    assert!(stdout(&o).to_lowercase().contains("usage"), "{}", stdout(&o));
+    assert!(
+        stdout(&o).contains("Show help"),
+        "help should be English: {}",
+        stdout(&o)
+    );
 }
 
 #[test]
 fn subcommand_helps() {
-    for cmd in ["list", "get", "edit", "+", "-", "export", "import", "tui"] {
+    for cmd in ["add", "list", "ls", "edit", "+", "-", "export", "import", "tui"] {
         let o = run(&[cmd, "--help"]);
         assert_ok(&o, &format!("{cmd} --help"));
         assert!(
@@ -105,6 +141,34 @@ fn subcommand_helps() {
             "{cmd} help bare"
         );
     }
+    // 英文 help 子命令：help [子命令]；未知子命令报错
+    let o = run(&["help", "list"]);
+    assert_ok(&o, "help list");
+    assert!(
+        stdout(&o).contains("List memos"),
+        "help list should be English: {}",
+        stdout(&o)
+    );
+    // delete --help 显示主命令名（非 -）
+    let o = run(&["help", "delete"]);
+    assert_ok(&o, "help delete");
+    let s = stdout(&o);
+    assert!(
+        s.contains("Usage: delete [OPTIONS] [TARGETS]...")
+            || s.contains("Usage: memos-cli delete [OPTIONS] [TARGETS]..."),
+        "delete usage should show full name: {s}"
+    );
+    // 直接 delete --help 同样显示完整命令名
+    let o = run(&["delete", "--help"]);
+    assert_ok(&o, "delete --help");
+    let s = stdout(&o);
+    assert!(
+        s.contains("Usage: delete [OPTIONS] [TARGETS]...")
+            || s.contains("Usage: memos-cli delete [OPTIONS] [TARGETS]..."),
+        "delete --help usage: {s}"
+    );
+    let o = run(&["help", "badcmd"]);
+    assert!(!o.status.success(), "help badcmd should fail");
 }
 
 #[test]
@@ -112,74 +176,120 @@ fn live_crud_list_get_filter_export_import_delete() {
     require_live();
     let marker = format!("func-test-{}", std::process::id());
 
-    // + 新增 + 标签
-    let o = run(&["+", &marker, "alpha", "+functest"]);
+    // add 新增 + 标签（TW 同款：mct add 正文 +tag）
+    let o = run(&["add", &marker, "alpha", "+functest"]);
     assert_ok(&o, "add");
     let created = stdout(&o);
     assert!(created.starts_with("created\t"), "{created}");
     let uid = created.trim().split('\t').nth(1).unwrap().to_string();
 
-    // list / l / ls
-    for sub in ["list", "l", "ls"] {
+    // + 别名兼容（快速往返，不留残留）
+    let o2 = run(&["+", &format!("{marker}-plusalias"), "+functest"]);
+    assert_ok(&o2, "plus alias add");
+    let uid3 = stdout(&o2).trim().split('\t').nth(1).unwrap().to_string();
+    let o2 = run(&["del", &uid3, "-y"]);
+    assert_ok(&o2, "plus alias del");
+
+    // list / li / ls
+    for sub in ["list", "li", "ls"] {
         let o = run(&[sub]);
         assert_ok(&o, sub);
         assert!(stdout(&o).contains(&marker), "{sub} missing marker");
     }
 
-    // list -f / --raw / -n
-    let o = run(&["l", "-f"]);
-    assert_ok(&o, "l -f");
-    let o = run(&["l", "--raw"]);
-    assert_ok(&o, "l --raw");
+    // list 全列（ID/DATE/TAG/DESCRIPTION 表头 + 数据行）/ --raw / -n
+    let o = run(&["li"]);
+    assert_ok(&o, "li");
+    let list_out = stdout(&o);
+    assert!(
+        list_out.starts_with("Id\tDate\tTag\tDescription"),
+        "li header: {list_out}"
+    );
+    let list_line = list_out
+        .lines()
+        .find(|l| l.contains(&marker))
+        .expect("li marker line")
+        .to_string();
+    assert_eq!(
+        list_line.split('\t').count(),
+        4,
+        "li should be 4 cols (id/date/tag/content): {list_line}"
+    );
+    let o = run(&["li", "--raw"]);
+    assert_ok(&o, "li --raw");
     assert!(stdout(&o).contains(&marker));
-    let o = run(&["l", "-n", "1"]);
-    assert_ok(&o, "l -n 1");
+    let o = run(&["li", "-n", "1"]);
+    assert_ok(&o, "li -n 1");
     let listed = stdout(&o);
-    let lines: Vec<_> = listed.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(lines.len(), 1, " -n 1 should show one line: {lines:?}");
+    let data_lines: Vec<_> = listed
+        .lines()
+        .filter(|l| !l.is_empty() && !l.starts_with("Id\t"))
+        .collect();
+    assert_eq!(data_lines.len(), 1, " -n 1 should show one data line: {listed}");
     let o = run(&["list", "--help"]);
     assert_ok(&o, "list help -n");
     assert!(stdout(&o).contains("-n") || stdout(&o).contains("limit"));
+    assert!(!stdout(&o).contains("--full"), "list should not expose --full");
+    // ls 短列表三列：编号\t标签\t内容（表头 ID/TAG/DESCRIPTION）
+    let o = run(&["ls"]);
+    assert_ok(&o, "ls");
+    let ls_out = stdout(&o);
+    assert!(ls_out.starts_with("Id\tTag\tDescription"), "ls header: {ls_out}");
+    let ls_line = ls_out
+        .lines()
+        .find(|l| l.contains(&marker))
+        .expect("ls marker line")
+        .to_string();
+    assert_eq!(ls_line.split('\t').count(), 3, "ls should be 3 cols: {ls_line}");
 
     // 筛选 +tag
-    let o = run(&["l", "+functest"]);
+    let o = run(&["li", "+functest"]);
     assert_ok(&o, "+functest filter");
     assert!(stdout(&o).contains(&marker));
 
     // 筛选 /regex/（真正则）
-    let o = run(&["l", &format!("/{marker}/")]);
+    let o = run(&["li", &format!("/{marker}/")]);
     assert_ok(&o, "regex filter");
     assert!(stdout(&o).contains(&marker));
-    let o = run(&["l", &format!("/^{}/", regex::escape(&marker))]);
+    let o = run(&["li", &format!("/^{}/", regex::escape(&marker))]);
     assert_ok(&o, "anchored regex");
     assert!(stdout(&o).contains(&marker));
 
-    // 首参直接 +tag / /re/ 重写为 list
+    // 首参直接 +tag / /re/ 重写为 list（默认分派）
     let o = run(&["+functest"]);
     assert_ok(&o, "bare +tag");
     assert!(stdout(&o).contains(&marker));
+    // -tag 首参同样重写（排除 functest → marker 不应出现）
+    let o = run(&["-functest"]);
+    assert_ok(&o, "bare -tag");
+    assert!(
+        !stdout(&o).contains(&marker),
+        "-tag should exclude marker"
+    );
 
-    // get / show / cat by uid
-    for sub in ["get", "show", "cat"] {
-        let o = run(&[sub, &uid]);
-        assert_ok(&o, sub);
-        assert!(stdout(&o).contains(&marker), "{sub} body");
+    // 默认命令按 uid 查看全文（原 get 行为 → 完整信息：uid/date/tags/content）
+    let o = run(&[&uid]);
+    assert_ok(&o, "default show uid");
+    let body = stdout(&o);
+    for key in ["uid:", "date:", "tags:", "content:"] {
+        assert!(body.contains(key), "missing `{key}` in full info: {body}");
     }
-    let o = run(&["get", &uid, "--raw"]);
-    assert_ok(&o, "get --raw");
+    assert!(body.contains(&marker), "full info should contain content: {body}");
+    let o = run(&[&uid, "--raw"]);
+    assert_ok(&o, "default show --raw");
     assert!(stdout(&o).contains("content") || stdout(&o).contains(&marker));
 
-    // get by list index: find index of marker
-    let o = run(&["l"]);
-    assert_ok(&o, "l for index");
+    // 默认命令按 list 编号查看全文
+    let o = run(&["li"]);
+    assert_ok(&o, "li for index");
     let idx = stdout(&o)
         .lines()
         .find(|l| l.contains(&marker))
         .and_then(|l| l.split('\t').next())
         .expect("index line")
         .to_string();
-    let o = run(&["get", &idx]);
-    assert_ok(&o, "get by index");
+    let o = run(&[&idx]);
+    assert_ok(&o, "default show by index");
     assert!(stdout(&o).contains(&marker));
 
     // edit via EDITOR script
@@ -205,8 +315,8 @@ fn live_crud_list_get_filter_export_import_delete() {
         .unwrap();
     assert_ok(&o, "edit");
     assert!(stdout(&o).contains("updated"), "{}", stdout(&o));
-    let o = run(&["get", &uid]);
-    assert_ok(&o, "get after edit");
+    let o = run(&[&uid]);
+    assert_ok(&o, "show after edit");
     assert!(stdout(&o).contains("edited"));
 
     // export
@@ -221,6 +331,12 @@ fn live_crud_list_get_filter_export_import_delete() {
     let imported = stdout(&o);
     assert!(imported.contains("imported\t"), "{imported}");
     let import_uid = imported.trim().split('\t').nth(1).unwrap().to_string();
+
+    // 幂等：同一 uid 再导入 → already exists（不重复创建）
+    let dup = format!("{import_uid}\tdup-line\t");
+    let o = run_stdin(&["import"], &dup);
+    assert_ok(&o, "import duplicate");
+    assert!(stdout(&o).contains("already exists"), "{}", stdout(&o));
 
     // del force by uid（-y 在 targets 里也要吃掉）
     let o = run(&["-", &import_uid, "-y"]);
@@ -241,7 +357,7 @@ fn live_crud_list_get_filter_export_import_delete() {
     assert!(stdout(&o).contains("deleted"));
 
     // 确认已不在 list
-    let o = run(&["l", &format!("/{marker}/")]);
+    let o = run(&["li", &format!("/{marker}/")]);
     assert_ok(&o, "list after delete");
     assert!(
         !stdout(&o).contains(&marker),

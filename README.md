@@ -59,6 +59,16 @@ MEMOS_TOKEN=memos_pat_xxx
 chmod 600 ~/.config/memos-cli/env
 ```
 
+推荐用内置命令写配置（自动标准 UTF-8 无 BOM + LF，Windows 上无需 dos2unix）：
+
+```bash
+memos-cli config --base http://127.0.0.1:5230 --token memos_pat_xxx
+memos-cli config --show          # 查看当前配置（token 脱敏）
+```
+
+读取对 Windows 编辑器产物容错：自动剥离 UTF-8 BOM、解码 UTF-16 LE/BE、容忍 CRLF。
+如确需手改 `env` 文件，把编辑器设为 **UTF-8 无 BOM + LF**。始终建议优先 `config` 命令。
+
 令牌：网页端 **设置 → Access tokens** 创建（只显示一次）。
 
 ## 用法

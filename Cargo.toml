@@ -1,6 +1,6 @@
 [package]
 name = "memos-cli"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Unofficial usememos CLI + TUI over REST API"
 license = "MIT"
@@ -19,9 +19,11 @@ ratatui = { version = "0.30", default-features = false, features = ["crossterm",
 crossterm = "0.29"
 tempfile = "3"
 regex = "1"
+libc = "0.2"
 
 [dev-dependencies]
 # integration tests reuse regex::escape
+parking_lot = "0.12"
 
 [profile.release]
 lto = true

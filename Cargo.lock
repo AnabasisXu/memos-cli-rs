@@ -1064,11 +1064,13 @@ dependencies = [
 
 [[package]]
 name = "memos-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
  "crossterm",
+ "libc",
+ "parking_lot",
  "ratatui",
  "regex",
  "reqwest",
