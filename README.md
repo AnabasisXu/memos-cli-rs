@@ -74,44 +74,47 @@ memos-cli config --show          # 查看当前配置（token 脱敏）
 ## 用法
 
 ```bash
-memos-cli l                       # 列表（默认 20 条）：编号 + 内容
-memos-cli l -n 5                  # 只显示 5 条
-memos-cli l -f                    # 编号 + 时间 + 内容
-memos-cli l --page-size 100       # API 多拉一些
-memos-cli get 1                   # 正文（别名 show / cat）
-memos-cli e 1                     # $EDITOR 编辑（别名 edit）
+memos-cli list                    # 列表（默认 20 条）：编号 + 时间 + 标签 + 内容
+memos-cli li                      # 同上（list 的常用别名）
+memos-cli li -n 5                 # 只显示 5 条
+memos-cli ls                      # 短列表：编号 + 标签 + 内容
+memos-cli li --page-size 100      # API 多拉一些
+memos-cli 1                       # 默认命令：查看编号 1 的完整信息（uid/date/tags/content）
+memos-cli e 1                     # $EDITOR 编辑
 
 # 筛选（taskwarrior 风格）
-memos-cli l +work                 # 含标签 work（只看 API tags，不扫正文）
-memos-cli l -test                 # 排除 test
-memos-cli l /hello/               # 正文正则（Rust regex）
-memos-cli l +work /urgent/ -test  # 可组合
-memos-cli +work                   # 省略 l：首参 +tag 直接筛选
-memos-cli /http/                  # 省略 l：正则筛选
+memos-cli li +work                # 含标签 work（只看 API tags，不扫正文）
+memos-cli li -test                # 排除 test
+memos-cli li /hello/              # 正文正则（Rust regex）
+memos-cli li +work /urgent/ -test # 可组合
+memos-cli +work                   # 省略命令：首参 +tag 直接筛选
+memos-cli /http/                  # 省略命令：正则筛选
 
 # 增删
-memos-cli + hello world           # 新增（+ 后须有空格）
-memos-cli + bright +love +work    # 正文后 +word 打标签 → 写入 #love #work
-memos-cli + 任务 --tag work        # 兼容 --tag
-memos-cli - 1                     # 删除（默认确认）
-memos-cli - 1 2-3 5 -y            # 批量；-y 跳过确认
-memos-cli del 2-3,5 --force       # 别名
+memos-cli add hello world         # 新增（正文多词拼接）
+memos-cli add bright +love +work  # 正文后 +word 打标签 → 写入 #love #work
+memos-cli add 任务 --tag work      # 兼容 --tag
+memos-cli + hello world           # 新增别名 +
+memos-cli delete 1                # 删除（默认确认）
+memos-cli delete 1 2-3 5 -y       # 批量；-y 跳过确认
+memos-cli del 2-3,5 --force       # 删除别名
 
 memos-cli export > all.tsv        # 全量 TSV
 memos-cli import < all.tsv        # 从 TSV 导入
 memos-cli tui                     # 交互 TUI
-memos-cli --help
+memos-cli --help                  # 英文帮助
+memos-cli --alias                 # 全部命令别名
 ```
 
 ### 编号
 
-- `l` 第一列是**当次拉取列表**的 1-based 真实编号。
-- 筛选只过滤展示，**不重排编号**；`get 11` / `e 12` / `- 11` 可用筛选结果里的序号。
+- 列表第一列是**当次拉取列表**的 1-based 真实编号。
+- 筛选只过滤展示，**不重排编号**；`11` / `e 12` / `delete 11` 可用筛选结果里的序号。
 - 列表变化后编号可能变。
 
 ### 标签
 
-usememos 从正文 `#tag` 识别标签并填进 API 的 `tags` 字段。`+ word +tag` 会把 `#tag` 追加进正文。  
+usememos 从正文 `#tag` 识别标签并填进 API 的 `tags` 字段。`add word +tag` 会把 `#tag` 追加进正文。  
 列表筛选 `+tag` / `-tag` **只匹配 `tags` 字段**，不扫正文里的字面 `#tag`。
 
 ### TUI
